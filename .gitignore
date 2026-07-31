@@ -1,0 +1,13 @@
+# Build output. Dependencies are fetched by CMake at configure time and are
+# deliberately not committed to this repository.
+build/
+_deps/
+cmake-build-*/
+
+*.o
+*.a
+*.so
+compile_commands.json
+.cache/
+.vscode/
+.idea/
