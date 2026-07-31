@@ -11,5 +11,3 @@ compile_commands.json
 .cache/
 .vscode/
 .idea/
-
-.agent.md

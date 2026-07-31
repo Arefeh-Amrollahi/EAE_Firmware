@@ -56,6 +56,8 @@ private:
     void transmit(const Commands &c, std::uint64_t now_us, double dt_s);
     double fanDutyFor(double temperature_c, double dt_s);
     double pumpDutyFor(double temperature_c) const;
+    double pumpColdLimit(double dt_s);
+    bool isCold(double temperature_c, bool valid) const;
 
     ICanBus &bus_;
     StateMachine sm_;
@@ -68,6 +70,7 @@ private:
 
     bool last_pump_enable_ = false;
     bool fan_latched_on_ = false;
+    double t_cold_run_ = 0.0;
     double t_fan_on_ = 0.0;
     double t_since_tx_status_ = 0.0;
     double t_since_tx_command_ = 0.0;

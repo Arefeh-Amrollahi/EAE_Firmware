@@ -11,7 +11,7 @@ code that would ship. Only the plant and the bus backing are swapped.
 ## Quick start
 
 ```bash
-./run.sh test                                   # build and run 34 GoogleTest cases via CTest
+./run.sh test                                   # build and run 36 GoogleTest cases via CTest
 ./run.sh run --scenario duty                    # normal shift
 ./run.sh run --scenario overload --verbose      # blocked radiator, derate then shutdown
 ./run.sh all                                    # tests plus every scenario

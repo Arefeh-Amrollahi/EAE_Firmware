@@ -52,6 +52,16 @@ struct Thresholds {
 
     double pump_min_duty = 40.0;
     double fan_min_duty = 20.0;
+
+    // Cold start.  Below about 20 C the NTC exceeds the CR0403 resistance
+    // range and the input over-ranges, which the sensor layer reports as a
+    // cold machine rather than a fault.  At -30 C, 50 % ethylene glycol is
+    // roughly forty times more viscous than at 20 C, so commanding full pump
+    // duty into it drives high pressure drop and high motor current for no
+    // cooling benefit, since the loop has no heat in it yet.
+    double pump_cold_limit = 55.0;
+    double cold_ramp_s = 20.0;
+    double cold_clamp_c = 20.0;
     double fan_min_on_s = 10.0;
 };
 

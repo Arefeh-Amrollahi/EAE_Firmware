@@ -108,6 +108,21 @@ double CoolingController::pumpDutyFor(double temperature_c) const {
     return th.pump_min_duty + frac * (100.0 - th.pump_min_duty);
 }
 
+bool CoolingController::isCold(double temperature_c, bool valid) const {
+    return valid && temperature_c <= sm_.thresholds().cold_clamp_c;
+}
+
+double CoolingController::pumpColdLimit(double dt_s) {
+    // Ramped rather than stepped, because the load the pump sees is the
+    // viscosity of the fluid and not a fixed impedance.  Twenty seconds lets
+    // the motor work the cold coolant through the loop with a lower peak
+    // current, and lets shear heating begin to thin it.
+    const Thresholds &th = sm_.thresholds();
+    t_cold_run_ += dt_s;
+    const double frac = std::clamp(t_cold_run_ / th.cold_ramp_s, 0.0, 1.0);
+    return th.pump_min_duty + frac * (th.pump_cold_limit - th.pump_min_duty);
+}
+
 double CoolingController::fanDutyFor(double temperature_c, double dt_s) {
     const Thresholds &th = sm_.thresholds();
 
@@ -209,8 +224,15 @@ Commands CoolingController::scan(const DiscreteInputs &in, double dt_s,
 
         case State::Prime:
             out.pump_enable = true;
-            out.pump_duty = 100.0;      // full flow purges air out of the core
             out.fan_contactor = true;   // energised, held at zero duty
+            if (isCold(temp_c, temp_valid)) {
+                // Cold start: ramp instead of purging at full flow.  Air still
+                // leaves the loop, only more slowly, and the deaeration line
+                // does the rest during normal running.
+                out.pump_duty = pumpColdLimit(dt_s);
+            } else {
+                out.pump_duty = 100.0;  // full flow purges air out of the core
+            }
             break;
 
         case State::Running:
@@ -219,6 +241,11 @@ Commands CoolingController::scan(const DiscreteInputs &in, double dt_s,
             out.fan_contactor = true;
             if (temp_valid) {
                 out.pump_duty = pumpDutyFor(temp_c);
+                if (isCold(temp_c, temp_valid)) {
+                    out.pump_duty = std::min(out.pump_duty, pumpColdLimit(dt_s));
+                } else {
+                    t_cold_run_ = 0.0;
+                }
                 out.fan_duty = fanDutyFor(temp_c, dt_s);
                 out.lamp_warning = temp_c >= th.warn_c;
             } else {

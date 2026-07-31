@@ -343,6 +343,50 @@ TEST(Controller, PrimesAtFullFlowThenModulates) {
     EXPECT_NEAR(c.pump_duty, 40.0, 0.01);
 }
 
+TEST(Controller, ColdStartLimitsThePumpInsteadOfPrimingAtFullFlow) {
+    // The sensor layer already reports a cold machine when the NTC over-ranges.
+    // This test holds the loop to acting on that rather than ignoring it.
+    VirtualCanBus bus;
+    bus.attach(kAddrController);
+    bus.attach(kAddrPump);
+    CoolingController ctl(bus, Thresholds{}, PidGains{});
+    PumpNode pump(bus);
+
+    DiscreteInputs in;
+    in.ignition = true;
+    in.temperature_resistance_ohm = 50000.0;
+    in.temperature_over_range = true;
+
+    Commands c;
+    for (int i = 0; i < 20; ++i) {
+        c = ctl.scan(in, 0.05, i * 50000);
+        pump.step(0.05, i * 50000);
+    }
+    EXPECT_EQ(c.state, State::Prime);
+    EXPECT_LT(c.pump_duty, 100.0) << "cold prime must not command full duty";
+    EXPECT_GE(c.pump_duty, Thresholds{}.pump_min_duty)
+        << "the pump must still turn";
+}
+
+TEST(Controller, WarmStartStillPrimesAtFullFlow) {
+    VirtualCanBus bus;
+    bus.attach(kAddrController);
+    bus.attach(kAddrPump);
+    CoolingController ctl(bus, Thresholds{}, PidGains{});
+    PumpNode pump(bus);
+
+    DiscreteInputs in;
+    in.ignition = true;
+    in.temperature_resistance_ohm = ThermalPlant::celsiusToResistance(30.0);
+
+    Commands c;
+    for (int i = 0; i < 20; ++i) {
+        c = ctl.scan(in, 0.05, i * 50000);
+        pump.step(0.05, i * 50000);
+    }
+    EXPECT_DOUBLE_EQ(c.pump_duty, 100.0);
+}
+
 TEST(Controller, HotCoolantDrivesBothActuatorsToFull) {
     VirtualCanBus bus;
     bus.attach(kAddrController);
